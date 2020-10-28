@@ -101,26 +101,81 @@ def active_station_observations():
     #Create session
     session = Session(engine)
 
-    query_results_active_station = session.query(Measurement.station, func.count(Measurement.station)) \
-                                          .group_by(Measurement.station) \
-                                          .order_by(func.count(Measurement.station).desc()).all()
+    # Find the latest date in the dataset
+    last_date_val = session.query(Measurement.date).order_by(Measurement.date.desc()).first()[0]
+    last_date_val = dt.datetime.strptime(last_date_val, '%Y-%m-%d')
+
+    # Get the date value from 1 year prior to the last date
+    last_date_val = dt.date(last_date_val.year, last_date_val.month, last_date_val.day)
+    pyear_date_val = dt.date(last_date_val.year -1, last_date_val.month, last_date_val.day)
+
+    max_observations = session.query(Measurement.date, Measurement.tobs) \
+                                 .filter(Measurement.station == 'USC00519281') \
+                                 .filter(Measurement.date > pyear_date_val).all()
 
     most_active_station = []
 
-    for station, amt in query_results_active_station:
+    for station, amt in max_observations:
         new_dict = {}
         new_dict[station] = amt
         most_active_station.append(new_dict)
 
     session.close()   
 
-    # return jsonify(most_active_station)
     return jsonify(most_active_station)
 
-# @app.route("/api/v1.0/<start>")
+@app.route("/api/v1.0/<start>")
+def start_data(start):
+
+    session = Session(engine)
+
+    value_list = []
+
+    query_results = session.query( Measurement.date,\
+                                  func.min(Measurement.tobs),\
+                                  func.max(Measurement.tobs),\
+                                  func.avg(Measurement.tobs)).\
+                                  filter(Measurement.date >= start).all()
+        
+    
+    for date, min, max, avg in query_results:
+        new_dict = {}
+        new_dict["Date"] = date
+        new_dict["TMIN"] = min
+        new_dict["TMAX"] = max
+        new_dict["TAVG"] = avg
+        value_list.append(new_dict)
+
+    session.close()
+
+    return jsonify(value_list)
 
 
-# @app.route("/api/v1.0/<start>/<end>")
+@app.route("/api/v1.0/<start>/<end>")
+def start_end_data(start, end):
+
+    session = Session(engine)
+
+    value_list = []
+
+    query_results = session.query( Measurement.date,\
+                                  func.min(Measurement.tobs),\
+                                  func.max(Measurement.tobs),\
+                                  func.avg(Measurement.tobs)).\
+                                  filter(Measurement.date >= start).filter(Measurement.date <= end).all()
+        
+    
+    for date, min, max, avg in query_results:
+        new_dict = {}
+        new_dict["Date"] = date
+        new_dict["TMIN"] = min
+        new_dict["TMAX"] = max
+        new_dict["TAVG"] = avg
+        value_list.append(new_dict)
+
+    session.close()
+
+    return jsonify(value_list)
 
 
 
